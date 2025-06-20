@@ -1,8 +1,8 @@
-# TTDOWNLOADER
+# TTDownloader
 
 ### Introduction
 
-This Android TTDOWNLOADER app is based on the open source.
+This Android TTDownloader app is based on the open source.
 
 ### Features
 ```
