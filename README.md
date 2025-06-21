@@ -11,7 +11,7 @@ This Android TTDownloader app is based on the open source.
 
 ### How to Use
 
-Press Back to enter another URL.
+Tap the three dots to download and Press Back to enter another URL
 
 ### Contact Info
 
