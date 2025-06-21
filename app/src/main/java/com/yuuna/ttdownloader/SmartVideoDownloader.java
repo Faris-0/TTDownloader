@@ -91,15 +91,17 @@ public class SmartVideoDownloader {
 
     public void downloadVideo(String url, String userAgent) {
         try {
+            String label = context.getApplicationInfo().loadLabel(context.getPackageManager()).toString();
+
             Uri uri = Uri.parse(url);
             String filename = uri.getLastPathSegment();
-            if (filename == null || filename.isEmpty()) {
-                filename = "video_" + System.currentTimeMillis() + ".mp4";
+            if (filename == null || filename.isEmpty() || !filename.endsWith(".mp4")) {
+                filename = label + "_" + System.currentTimeMillis() + ".mp4";
             }
 
             DownloadManager.Request request = new DownloadManager.Request(uri);
             request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, label + "/" + filename);
             request.addRequestHeader("User-Agent", userAgent);
 
             String cookie = CookieManager.getInstance().getCookie(url);

@@ -13,13 +13,10 @@ import android.webkit.WebViewClient;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 
-import java.util.ArrayList;
-
 public class MainActivity extends Activity {
 
-    private WebView wvWeb;
-    private WebSettings wsWeb;
-    private ArrayList<String> stringArrayList = new ArrayList<>();
+    private WebView wvWebHide, wvVideo;
+    private SmartVideoDownloader downloader;
     private String sURL = "";
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -28,51 +25,28 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        SmartVideoDownloader downloader = new SmartVideoDownloader(this);
+        downloader = new SmartVideoDownloader(this);
         downloader.registerReceiver();
 
-        wvWeb = findViewById(R.id.amWeb);
-        wsWeb = wvWeb.getSettings();
+        wvWebHide = findViewById(R.id.amWebHide);
+        wvVideo = findViewById(R.id.amVideo);
+
+        WebSettings wsWeb = wvWebHide.getSettings();
         wsWeb.setJavaScriptEnabled(true);
-        wvWeb.addJavascriptInterface(new JSBridge(this), "AndroidBridge");
         wsWeb.setMediaPlaybackRequiresUserGesture(false);
         wsWeb.setDomStorageEnabled(true);
         wsWeb.setLoadWithOverviewMode(true);
         wsWeb.setUseWideViewPort(true);
-        wvWeb.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-
-                if (stringArrayList.size() == 1) wvWeb.loadUrl(stringArrayList.get(0));
-                String js = "(async function () {\n" +
-                        "  const video = document.querySelector('video');\n" +
-                        "\n" +
-                        "  if (!video || !video.src && !video.querySelector('source')) {\n" +
-                        "    alert(\"Video tidak ditemukan\");\n" +
-                        "    return;\n" +
-                        "  }\n" +
-                        "\n" +
-                        "  const url = video.src || video.querySelector('source').src;\n" +
-                        "\n" +
-                        "  const response = await fetch(url);\n" +
-                        "  const blob = await response.blob();\n" +
-                        "\n" +
-                        "  const reader = new FileReader();\n" +
-                        "  reader.onloadend = function () {\n" +
-                        "    const base64 = reader.result.split(',')[1];\n" +
-                        "    AndroidBridge.saveBase64File(base64, 'TikTok_" + (System.currentTimeMillis()) + ".mp4');\n" +
-                        "  };\n" +
-                        "  reader.readAsDataURL(blob);\n" +
-                        "})();\n";
-
-                view.evaluateJavascript(js, null);
-            }
-
+        wvWebHide.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 if (request.getUrl().toString().contains("-webapp-prime.tiktok.com") && sURL.startsWith("https://www.tiktok.com/")) {
-                    stringArrayList.add(request.getUrl().toString());
+                    runOnUiThread(() -> {
+                        wvVideo.loadUrl(request.getUrl().toString());
+                        wvVideo.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
+                            downloader.downloadVideo(url, userAgent);
+                        });
+                    });
                 }
                 return super.shouldInterceptRequest(view, request);
             }
@@ -91,12 +65,11 @@ public class MainActivity extends Activity {
         etURL.setLayoutParams(params);
         flURL.addView(etURL);
         new AlertDialog.Builder(this)
-                .setTitle("Input URL Tiktok\n(ex. https://www.tiktok.com/.../video/7513176888089513222)")
+                .setTitle("Input URL Tiktok\n(ex. https://www.tiktok.com/../video/...)")
                 .setView(flURL)
-                .setPositiveButton("Save", (dialogInterface, i) -> {
-                    stringArrayList.clear();
+                .setPositiveButton("Open", (dialogInterface, i) -> {
                     sURL = etURL.getText().toString();
-                    wvWeb.loadUrl(sURL);
+                    wvWebHide.loadUrl(sURL);
                 })
                 .setNegativeButton("Cancel", (dialogInterface, i) -> dialogInterface.dismiss())
                 .show();
