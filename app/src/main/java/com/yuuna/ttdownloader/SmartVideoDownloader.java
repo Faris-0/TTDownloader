@@ -71,24 +71,6 @@ public class SmartVideoDownloader {
         }
     }
 
-    public void downloadFromWebView(WebView webView) {
-        webView.evaluateJavascript(
-                "(function() {" +
-                        "  var src = document.querySelector('video source')?.src;" +
-                        "  return src || '';" +
-                        "})()",
-                value -> {
-                    String url = value.replace("\"", "");
-                    if (!url.isEmpty()) {
-                        String ua = webView.getSettings().getUserAgentString();
-                        downloadVideo(url, ua);
-                    } else {
-                        Log.w("VideoDownload", "Tidak ditemukan <source> video.");
-                    }
-                }
-        );
-    }
-
     public void downloadVideo(String url, String userAgent) {
         try {
             String label = context.getApplicationInfo().loadLabel(context.getPackageManager()).toString();
