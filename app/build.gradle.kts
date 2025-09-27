@@ -33,4 +33,5 @@ android {
 dependencies {
 
     implementation(libs.sdp.android)
+    implementation(libs.okhttp)
 }

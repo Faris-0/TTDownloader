@@ -42,10 +42,19 @@ public class MainActivity extends Activity {
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 if (request.getUrl().toString().contains("-webapp-prime.tiktok.com") && sURL.startsWith("https://www.tiktok.com/")) {
                     runOnUiThread(() -> {
-                        wvVideo.loadUrl(request.getUrl().toString());
-                        wvVideo.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
-                            downloader.downloadVideo(url, userAgent);
-                        });
+                        downloader.downloadVideo(request.getUrl().toString(), "Mozilla/5.0 (Android) AppleWebKit/537.36 Chrome/115 Safari/537.36");
+                        WebSettings wsWeb = wvVideo.getSettings();
+                        wsWeb.setJavaScriptEnabled(true);
+                        wsWeb.setMediaPlaybackRequiresUserGesture(false);
+                        wsWeb.setDomStorageEnabled(true);
+                        String html = "<html><body style='margin:0;padding:0;background:#000'>" +
+                                "<video id='vid' width='100%' height='100%' controls autoplay playsinline style='object-fit:contain'>" +
+                                "<source src='" + request.getUrl().toString() + "' type='video/mp4'>" +
+                                "Video tidak bisa diputar." +
+                                "</video>" +
+                                "<script>document.getElementById('vid').play();</script>" +
+                                "</body></html>";
+                        wvVideo.loadDataWithBaseURL("https://www.tiktok.com", html, "text/html", "UTF-8", null);
                     });
                 }
                 return super.shouldInterceptRequest(view, request);

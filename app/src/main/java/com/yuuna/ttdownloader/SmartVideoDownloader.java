@@ -1,27 +1,34 @@
 package com.yuuna.ttdownloader;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.Cursor;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.util.Log;
 import android.webkit.CookieManager;
-import android.webkit.WebView;
+import android.widget.Toast;
+
+import java.io.File;
+import java.io.FileOutputStream;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 public class SmartVideoDownloader {
 
-    private final Context context;
+    private final Activity activity;
     private BroadcastReceiver receiver;
     private long lastDownloadId = -1;
 
-    public SmartVideoDownloader(Context ctx) {
-        this.context = ctx.getApplicationContext();
+    public SmartVideoDownloader(Activity act) {
+        this.activity = act;
     }
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
@@ -58,13 +65,13 @@ public class SmartVideoDownloader {
         };
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(
+            activity.registerReceiver(
                     receiver,
                     new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
                     Context.RECEIVER_NOT_EXPORTED
             );
         } else {
-            context.registerReceiver(
+            activity.registerReceiver(
                     receiver,
                     new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
             );
@@ -72,29 +79,37 @@ public class SmartVideoDownloader {
     }
 
     public void downloadVideo(String url, String userAgent) {
-        try {
-            String label = context.getApplicationInfo().loadLabel(context.getPackageManager()).toString();
+        new Thread(() -> {
+            try {
+                OkHttpClient client = new OkHttpClient();
+                Request request = new Request.Builder()
+                        .url(url)
+                        .addHeader("User-Agent", userAgent)
+                        .addHeader("Referer", "https://www.tiktok.com/")
+                        .addHeader("Origin", "https://www.tiktok.com")
+                        .addHeader("Cookie", CookieManager.getInstance().getCookie(url))
+                        .build();
 
-            Uri uri = Uri.parse(url);
-            String filename = uri.getLastPathSegment();
-            if (filename == null || filename.isEmpty() || !filename.endsWith(".mp4")) {
-                filename = label + "_" + System.currentTimeMillis() + ".mp4";
+                Response response = client.newCall(request).execute();
+                Log.i("VideoDownload", "Response code: " + response.code());
+
+                if (response.isSuccessful()) {
+                    byte[] data = response.body().bytes();
+                    String label = activity.getApplicationInfo().loadLabel(activity.getPackageManager()).toString();
+                    File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), label);
+                    if (!dir.exists()) dir.mkdir();
+                    File file = new File(dir, "TikTok_" + System.currentTimeMillis() + ".mp4");
+                    FileOutputStream fos = new FileOutputStream(file);
+                    fos.write(data);
+                    fos.close();
+                    Log.i("VideoDownload", "Berhasil simpan: " + file.getAbsolutePath());
+                    activity.runOnUiThread(() -> {
+                        Toast.makeText(activity, "Disimpan: " + file.getName(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            } catch (Exception e) {
+                Log.e("VideoDownload", "Gagal download: " + e.getMessage(), e);
             }
-
-            DownloadManager.Request request = new DownloadManager.Request(uri);
-            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, label + "/" + filename);
-            request.addRequestHeader("User-Agent", userAgent);
-
-            String cookie = CookieManager.getInstance().getCookie(url);
-            if (cookie != null) {
-                request.addRequestHeader("Cookie", cookie);
-            }
-
-            DownloadManager dm = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
-            lastDownloadId = dm.enqueue(request);
-        } catch (Exception e) {
-            Log.e("VideoDownload", "Gagal menginisiasi download: " + e.getMessage(), e);
-        }
+        }).start();
     }
 }
